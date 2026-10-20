@@ -5,6 +5,14 @@
   "type": "module",
   "description": "Discord bug-report intake bot for Arklay",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/arklay-engine/arklay-bot.git"
+  },
+  "bugs": {
+    "url": "https://github.com/arklay-engine/arklay-bot/issues"
+  },
+  "homepage": "https://github.com/arklay-engine/arklay-bot#readme",
   "engines": {
     "node": ">=22"
   },

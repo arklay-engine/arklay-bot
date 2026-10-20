@@ -75,14 +75,14 @@ The bot refreshes installation tokens automatically and never stores them on dis
 
 GitHub App tokens cannot use GitHub's `user-attachments` endpoint, so attachments need a user token. The recommended setup is a small public repository used only for attachments:
 
-1. Create a public repository such as `IntelOrca/arklay-bug-attachments`.
+1. Create a public repository such as `arklay-engine/arklay-bug-attachments`.
 2. Create a fine-grained PAT scoped to **that repository only**, with **Contents: Read and write**.
 3. Put it in `.env` as `GITHUB_ATTACHMENT_TOKEN=...`.
 4. Set:
 
 ```toml
 [github]
-attachment_repo = "IntelOrca/arklay-bug-attachments"
+attachment_repo = "arklay-engine/arklay-bug-attachments"
 attachment_branch = "main"
 ```
 

@@ -2,6 +2,8 @@
 
 A Discord bug-report intake bot for [Arklay](https://github.com/IntelOrca/arklay-rs).
 
+The source lives at [arklay-engine/arklay-bot](https://github.com/arklay-engine/arklay-bot). By default it files issues against `IntelOrca/arklay-rs`; change `github.repo` to target another repository.
+
 It watches `#report-a-bug`, asks the reporter for the missing details, checks the existing GitHub issues for duplicates, shows a draft, and files the issue only after the reporter confirms.
 
 The bot is deliberately a small state machine with LLM steps, not an autonomous agent. The model conducts the conversation, extracts fields, and judges duplicates. Ordinary code decides when to file, which labels to use, and which GitHub calls to make.

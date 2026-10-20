@@ -168,6 +168,26 @@ export class ReportFlow {
     }
   }
 
+  /**
+   * Discord typing indicators expire after about ten seconds. Keep one alive
+   * for the whole LLM/upload turn instead of sending it once and going quiet.
+   */
+  private startTyping(channel: {
+    sendTyping: () => Promise<unknown>;
+  }): () => void {
+    let stopped = false;
+    const tick = (): void => {
+      if (stopped) return;
+      void channel.sendTyping().catch(() => undefined);
+    };
+    tick();
+    const timer = setInterval(tick, 7000);
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+    };
+  }
+
   async handleThreadCreate(thread: ThreadChannel): Promise<void> {
     if (thread.parentId !== this.channel.id) return;
     if (thread.ownerId === this.client.user?.id) return;
@@ -303,10 +323,10 @@ export class ReportFlow {
       return;
     }
 
-    if (message.channel.isSendable()) {
-      await message.channel.sendTyping().catch(() => undefined);
-    }
-
+    const stopTyping = message.channel.isSendable()
+      ? this.startTyping(message.channel)
+      : () => undefined;
+    try {
     const content = await this.collectMessageContent(message, text);
     const report = this.store.createReport({
       threadId: message.id,
@@ -399,6 +419,9 @@ export class ReportFlow {
         allowedMentions: { parse: [] },
       });
     }
+    } finally {
+      stopTyping();
+    }
   }
 
   private async handleThreadMessage(report: Report, message: Message): Promise<void> {
@@ -449,72 +472,76 @@ export class ReportFlow {
   private async runTurn(report: Report): Promise<void> {
     await this.withLock(report.id, async () => {
       const thread = await this.getThread(report);
-      await thread.sendTyping().catch(() => undefined);
+      const stopTyping = this.startTyping(thread);
 
-      const userTurns = report.transcript.filter((entry) => entry.role === "user").length;
-      let turn: LlmTurn;
       try {
-        turn = await this.llm.runTurn(report, this.config.behavior.max_user_turns);
-      } catch (error) {
-        logger.error(`LLM turn failed for report ${report.id}`, String(error));
-        const question = fallbackQuestion(report.slots);
-        if (question) {
-          await this.sendAssistant(thread, report, question);
+        const userTurns = report.transcript.filter((entry) => entry.role === "user").length;
+        let turn: LlmTurn;
+        try {
+          turn = await this.llm.runTurn(report, this.config.behavior.max_user_turns);
+        } catch (error) {
+          logger.error(`LLM turn failed for report ${report.id}`, String(error));
+          const question = fallbackQuestion(report.slots);
+          if (question) {
+            await this.sendAssistant(thread, report, question);
+            return;
+          }
+          turn = {
+            reply: "",
+            slots: {},
+            missing: [],
+            ready: true,
+            title: titleFromSummary(report.slots.summary),
+          };
+        }
+
+        this.mergeSlots(report, turn.slots);
+
+        const forceReady = userTurns >= this.config.behavior.max_user_turns;
+        const lastUserMessage =
+          report.transcript
+            .filter((entry) => entry.role === "user")
+            .at(-1)?.content ?? "";
+        if (
+          !report.slots.game.trim() &&
+          /don'?t know|not sure|unsure|no idea/i.test(lastUserMessage)
+        ) {
+          report.slots.game = "Unknown";
+          this.store.saveReport(report);
+        }
+        if (!report.slots.game.trim() && !forceReady) {
+          turn.ready = false;
+          turn.reply =
+            "Which game is this for: RE1, RE2, RE3, or a third-party game pack?";
+        }
+        if (!turn.ready && !forceReady) {
+          const reply =
+            turn.reply.trim() ||
+            fallbackQuestion(report.slots) ||
+            "Can you tell me a little more about what happened?";
+          await this.sendAssistant(thread, report, reply);
           return;
         }
-        turn = {
-          reply: "",
-          slots: {},
-          missing: [],
-          ready: true,
-          title: titleFromSummary(report.slots.summary),
-        };
-      }
 
-      this.mergeSlots(report, turn.slots);
+        if (!report.slots.summary.trim()) {
+          report.slots.summary = oneLine(
+            turn.title ||
+              report.transcript.find((entry) => entry.role === "user")?.content ||
+              "Bug report",
+          ).slice(0, 1000);
+        }
 
-      const forceReady = userTurns >= this.config.behavior.max_user_turns;
-      const lastUserMessage =
-        report.transcript
-          .filter((entry) => entry.role === "user")
-          .at(-1)?.content ?? "";
-      if (
-        !report.slots.game.trim() &&
-        /don'?t know|not sure|unsure|no idea/i.test(lastUserMessage)
-      ) {
-        report.slots.game = "Unknown";
-        this.store.saveReport(report);
-      }
-      if (!report.slots.game.trim() && !forceReady) {
-        turn.ready = false;
-        turn.reply =
-          "Which game is this for: RE1, RE2, RE3, or a third-party game pack?";
-      }
-      if (!turn.ready && !forceReady) {
-        const reply =
-          turn.reply.trim() ||
-          fallbackQuestion(report.slots) ||
-          "Can you tell me a little more about what happened?";
-        await this.sendAssistant(thread, report, reply);
-        return;
-      }
+        if (!forceReady && turn.reply.trim()) {
+          await this.sendAssistant(thread, report, turn.reply);
+        }
 
-      if (!report.slots.summary.trim()) {
-        report.slots.summary = oneLine(
-          turn.title ||
-            report.transcript.find((entry) => entry.role === "user")?.content ||
-            "Bug report",
-        ).slice(0, 1000);
-      }
-
-      if (!forceReady && turn.reply.trim()) {
-        await this.sendAssistant(thread, report, turn.reply);
-      }
-
-      if (report.duplicateMatches.length === 0) {
-        await this.checkDuplicates(thread, report);
-      } else {
-        await this.showDraft(thread, report);
+        if (report.duplicateMatches.length === 0) {
+          await this.checkDuplicates(thread, report);
+        } else {
+          await this.showDraft(thread, report);
+        }
+      } finally {
+        stopTyping();
       }
     });
   }

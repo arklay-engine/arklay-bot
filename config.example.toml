@@ -1,0 +1,108 @@
+# Arklay bug-report bot configuration.
+#
+# Copy to config.toml and edit. Secrets belong in .env, not here.
+
+[discord]
+# Leave empty to use the only guild the bot is in.
+guild_id = ""
+# Leave empty to find the channel by name in the guild.
+channel_id = ""
+channel_name = "report-a-bug"
+
+# Optional private channel for the first few reports, when approval is required.
+triage_channel_id = ""
+
+# Users with this role can use \quick to file without the Q&A or a thread.
+# Set quick_role_id if the role is renamed; the ID takes precedence.
+quick_role_name = "umbrella"
+quick_role_id = ""
+
+# Optional forum tags. The bot matches these by name on the forum channel.
+needs_info_tag = "needs-info"
+filed_tag = "filed"
+duplicate_tag = "duplicate"
+
+# Extra maintainers, in addition to the guild owner. Discord user IDs.
+maintainer_user_ids = []
+
+[github]
+repo = "IntelOrca/arklay-rs"
+
+# "token" uses $GITHUB_TOKEN. "app" uses a GitHub App installation and files
+# issues as <app-slug>[bot].
+auth = "token"
+token_env = "GITHUB_TOKEN"
+
+# Only used when auth = "app".
+app_id = ""
+installation_id = ""
+private_key_path = ""
+
+# Optional user token for uploading screenshots and save files to GitHub.
+# The user-attachments endpoint does not accept GitHub App tokens.
+attachment_token_env = "GITHUB_ATTACHMENT_TOKEN"
+
+# Recommended: a public repository used only for attachments. The token above
+# needs Contents: Read and write on this repository. Leave empty to use
+# GitHub's user-attachments endpoint (images only).
+attachment_repo = ""
+attachment_branch = "main"
+
+# True means never create or comment on GitHub, just show the draft in Discord.
+dry_run = true
+
+# Always-applied labels must already exist on the repository. The bot adds
+# bug_label or enhancement_label depending on the report type.
+labels = ["from-discord"]
+bug_label = "bug"
+enhancement_label = "enhancement"
+
+# Include the reporter's Discord handle in the public issue. Off by default.
+include_reporter = false
+
+# Include a link back to the Discord thread in the issue.
+include_thread_link = true
+
+# How many issues to send to the duplicate check prompt.
+max_issues_for_dedupe = 150
+
+[llm]
+# "opencode-cli" uses the local `opencode` login and its free Go models.
+# "openai" uses any OpenAI-compatible /chat/completions endpoint.
+backend = "opencode-cli"
+
+# For opencode-cli, use the provider/model form, e.g. opencode-go/beam-free.
+# For openai, use the bare model ID the endpoint expects, e.g. beam-free.
+model = "opencode-go/beam-free"
+dedupe_model = "opencode-go/beam-free"
+
+# Only used by backend = "openai".
+base_url = "https://opencode.ai/inference/go/openai/v1"
+api_key_env = "OPENCODE_API_KEY"
+json_mode = true
+
+opencode_command = "opencode"
+timeout_seconds = 90
+temperature = 0.2
+
+[behavior]
+# Require a maintainer to approve the draft before it is filed.
+# Turn this on for the first few real reports, then turn it off.
+approval_required = false
+
+# After this many user messages, the bot files with what it has.
+max_user_turns = 8
+
+# Per-user daily report limit.
+max_reports_per_user_per_day = 5
+
+# Archive the forum post automatically after filing.
+archive_after_file = false
+
+# Post a short privacy/AI notice when a report starts.
+privacy_notice = true
+
+# Optional sentence the bot may ask for once environment details are relevant.
+# Example, once the engine has the command:
+# diagnostics_hint = "Run `arklay --diagnostics` and paste the output."
+diagnostics_hint = ""

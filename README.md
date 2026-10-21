@@ -175,6 +175,23 @@ npm start
 
 The SQLite database and generated agent config live in `data/`. Back up that directory if you care about in-progress reports.
 
+The bot catches up on recent channel messages after a restart, skipping reports that already exist.
+
+### Run as a user service
+
+A transient shell will stop the bot when the session ends. Keep it running with systemd:
+
+```sh
+mkdir -p ~/.config/systemd/user
+cp deploy/arklay-bot.service ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now arklay-bot
+loginctl enable-linger "$USER"
+journalctl --user -u arklay-bot -f
+```
+
+The unit assumes the repository is at `~/repos/arklay-bot` and Node is installed through mise. Adjust the `PATH` line if yours differs.
+
 ## Testing
 
 ```sh

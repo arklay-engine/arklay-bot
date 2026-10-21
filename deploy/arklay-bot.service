@@ -1,0 +1,20 @@
+[Unit]
+Description=Arklay Discord bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/repos/arklay-bot
+Environment=HOME=%h
+# Adjust the mise/Node path if your Node installation lives elsewhere.
+Environment=PATH=%h/.local/share/mise/installs/node/26.8.2/bin:/usr/local/bin:/usr/bin:/bin
+EnvironmentFile=-%h/repos/arklay-bot/.env
+ExecStart=/usr/bin/env node dist/index.js
+Restart=always
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=20
+
+[Install]
+WantedBy=default.target

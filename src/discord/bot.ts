@@ -182,6 +182,9 @@ export async function startBot(
         logger.info("Listening for new forum posts.");
       } else {
         logger.info("Listening for new messages in the text channel.");
+        void flow.catchUp().catch((error) => {
+          logger.error("Could not catch up on missed messages", String(error));
+        });
       }
     } catch (error) {
       logger.error("Startup failed", String(error));

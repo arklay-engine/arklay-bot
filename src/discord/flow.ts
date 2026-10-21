@@ -151,6 +151,37 @@ export class ReportFlow {
     );
   }
 
+  /**
+   * Process messages that arrived while the bot was offline. Existing reports
+   * are skipped by starter message, so restarts do not duplicate threads.
+   */
+  async catchUp(limit = 50): Promise<void> {
+    if (!("messages" in this.channel)) return;
+
+    const cutoff = Date.now() - DAY_MS;
+    const messages = await this.channel.messages.fetch({ limit });
+    const ordered = [...messages.values()].sort(
+      (a, b) => a.createdTimestamp - b.createdTimestamp,
+    );
+
+    for (const message of ordered) {
+      if (message.author.bot || message.system) continue;
+      if (message.createdTimestamp < cutoff) continue;
+      if (message.thread) continue;
+      if (this.store.getReportByStarterMessage(message.id)) continue;
+
+      try {
+        logger.info(`Catching up on message ${message.id}`);
+        await this.handleMessage(message);
+      } catch (error) {
+        logger.error(
+          `Catch-up failed for message ${message.id}`,
+          String(error),
+        );
+      }
+    }
+  }
+
   private async withLock<T>(id: string, fn: () => Promise<T>): Promise<T> {
     const previous = this.locks.get(id) ?? Promise.resolve();
     let release!: () => void;
@@ -240,6 +271,7 @@ export class ReportFlow {
     message: Message,
     contentOverride?: string,
   ): Promise<void> {
+    if (this.store.getReportByStarterMessage(message.id)) return;
     const nameSource =
       contentOverride?.trim() ||
       message.content ||

@@ -195,6 +195,13 @@ export class ReportStore {
     return row ? rowToReport(row) : null;
   }
 
+  getReportByStarterMessage(messageId: string): Report | null {
+    const row = this.db
+      .prepare("SELECT * FROM reports WHERE starter_message_id = ?")
+      .get(messageId) as ReportRow | undefined;
+    return row ? rowToReport(row) : null;
+  }
+
   saveReport(report: Report): void {
     report.updatedAt = Date.now();
     this.db

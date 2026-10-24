@@ -70,28 +70,42 @@ export class GitHubAppAuth {
     });
     const text = await response.text();
     if (!response.ok) {
-      throw new Error(
+      const error = new Error(
         `GitHub App request ${path} failed (${response.status}): ${text.slice(0, 500)}`,
-      );
+      ) as Error & { status?: number };
+      error.status = response.status;
+      throw error;
     }
     return (text ? JSON.parse(text) : {}) as T;
   }
 
   private async discoverInstallationId(): Promise<number> {
-    const data = await this.request<{ id: number }>(
-      `/repos/${this.repo}/installation`,
-      this.jwt(),
-    );
+    let data: { id: number };
+    try {
+      data = await this.request<{ id: number }>(
+        `/repos/${this.repo}/installation`,
+        this.jwt(),
+      );
+    } catch (error) {
+      if ((error as Error & { status?: number }).status === 404) {
+        throw new Error(
+          `The GitHub App is not installed on ${this.repo}. ` +
+            `Reinstall it at https://github.com/apps/arklay-bot/installations/new, then restart the bot.`,
+        );
+      }
+      throw error;
+    }
     if (!data.id) {
       throw new Error(
-        `The GitHub App is not installed on ${this.repo}. Install it on that repository first.`,
+        `The GitHub App is not installed on ${this.repo}. ` +
+          `Reinstall it at https://github.com/apps/arklay-bot/installations/new, then restart the bot.`,
       );
     }
     logger.info(`GitHub App installation ${data.id} on ${this.repo}`);
     return data.id;
   }
 
-  async getToken(): Promise<string> {
+  async getToken(retry = true): Promise<string> {
     if (
       this.cached &&
       this.cached.expiresAt - TOKEN_REFRESH_MARGIN_MS > Date.now()
@@ -103,18 +117,30 @@ export class GitHubAppAuth {
       this.installationId = await this.discoverInstallationId();
     }
 
-    const data = await this.request<{
-      token: string;
-      expires_at: string;
-    }>(`/app/installations/${this.installationId}/access_tokens`, this.jwt(), {
-      method: "POST",
-    });
+    try {
+      const data = await this.request<{
+        token: string;
+        expires_at: string;
+      }>(`/app/installations/${this.installationId}/access_tokens`, this.jwt(), {
+        method: "POST",
+      });
 
-    this.cached = {
-      token: data.token,
-      expiresAt: Date.parse(data.expires_at),
-    };
-    logger.debug("Refreshed GitHub App installation token");
-    return this.cached.token;
+      this.cached = {
+        token: data.token,
+        expiresAt: Date.parse(data.expires_at),
+      };
+      logger.debug("Refreshed GitHub App installation token");
+      return this.cached.token;
+    } catch (error) {
+      if ((error as Error & { status?: number }).status === 404 && retry) {
+        logger.warn(
+          "The cached GitHub App installation no longer exists; rediscovering it.",
+        );
+        this.installationId = null;
+        this.cached = null;
+        return this.getToken(false);
+      }
+      throw error;
+    }
   }
 }

@@ -1,8 +1,8 @@
 # arklay-bot
 
-A Discord bug-report intake bot for [Arklay](https://github.com/IntelOrca/arklay-rs).
+A Discord bug-report intake bot for [Arklay](https://github.com/arklay-engine/arklay).
 
-The source lives at [arklay-engine/arklay-bot](https://github.com/arklay-engine/arklay-bot). By default it files issues against `IntelOrca/arklay-rs`; change `github.repo` to target another repository.
+The source lives at [arklay-engine/arklay-bot](https://github.com/arklay-engine/arklay-bot). By default it files issues against `arklay-engine/arklay`; change `github.repo` to target another repository.
 
 It watches `#report-a-bug`, asks the reporter for the missing details, checks the existing GitHub issues for duplicates, shows a draft, and files the issue only after the reporter confirms.
 
@@ -60,7 +60,7 @@ The bot can file as a GitHub App or as a user PAT. The App is recommended: issue
 2. Set a homepage URL, disable the webhook, and choose **Only on this account**.
 3. Repository permissions: **Issues: Read and write**, **Metadata: Read-only**.
 4. Create the app, note the **App ID**, and generate a private key.
-5. Install the app on `IntelOrca/arklay-rs` only.
+5. Install the app on `arklay-engine/arklay` only.
 6. Save the private key outside the repository (the `data/` directory is git-ignored), then set:
 
 ```toml
@@ -118,7 +118,7 @@ Important settings:
 | `discord.channel_name` | Channel to watch, default `report-a-bug` |
 | `discord.quick_role_name` | Role allowed to use `\quick`, default `umbrella` |
 | `discord.quick_role_id` | Optional role ID, takes precedence over the name |
-| `github.repo` | Target repository, default `IntelOrca/arklay-rs` |
+| `github.repo` | Target repository, default `arklay-engine/arklay` |
 | `github.auth` | `app` or `token` |
 | `github.dry_run` | If true, never writes to GitHub |
 | `github.labels` | Always-applied labels; they must already exist |

@@ -26,7 +26,7 @@ duplicate_tag = "duplicate"
 maintainer_user_ids = []
 
 [github]
-repo = "IntelOrca/arklay-rs"
+repo = "arklay-engine/arklay"
 
 # "token" uses $GITHUB_TOKEN. "app" uses a GitHub App installation and files
 # issues as <app-slug>[bot].
